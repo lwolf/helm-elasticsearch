@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{template "fullname" .}}-metrics
+  labels:
+    component: {{template "fullname" .}}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9200"
+    prometheus.io/path: "/_prometheus/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    component: {{template "fullname" .}}
+  ports:
+  - name: http
+    port: {{ .Values.service.httpPort }}
+    targetPort: 9200
+    protocol: TCP

@@ -2,7 +2,8 @@ common:
   image:
     repository: quay.io/pires/docker-elasticsearch-kubernetes
     tag: 5.5.0
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
+  plugins: "repository-s3,http://dl.bintray.com/content/imotov/elasticsearch-plugins/org/elasticsearch/elasticsearch-analysis-morphology/5.5.0/elasticsearch-analysis-morphology-5.5.0.zip,https://distfiles.compuscene.net/elasticsearch/elasticsearch-prometheus-exporter-5.5.0.0.zip"
   env:
     CLUSTER_NAME: "myesdb"
     # Uncomment this if you get the "No up-and-running site-local (private) addresses" error
@@ -20,7 +21,27 @@ client:
     NODE_MASTER: "false"
     NODE_INGEST: "true"
     HTTP_ENABLE: "true"
-    ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+  resources:
+    limits:
+      cpu: 200m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - node
+          topologyKey: kubernetes.io/hostname
+
 
 # Data nodes hold the shards that contain the documents you have indexed. Data
 # nodes handle data related operations like CRUD, search, and aggregations. 
@@ -36,8 +57,29 @@ data:
     NODE_DATA: "true"
     NODE_MASTER: "false"
     NODE_INGEST: "false"
-    HTTP_ENABLE: "false"
-    ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    HTTP_ENABLE: "true"
+    ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+  hostPath: /srv/data/
+  resources:
+    limits:
+      cpu: 300m
+      memory: 3Gi
+    requests:
+      cpu: 300m
+      memory: 2Gi
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - node
+          topologyKey: kubernetes.io/hostname
+
 
 # The master node is responsible for lightweight cluster-wide actions such as
 # creating or deleting an index, tracking which nodes are part of the 
@@ -50,15 +92,34 @@ master:
     NODE_DATA: "false"
     NODE_MASTER: "true"
     NODE_INGEST: "false"
-    HTTP_ENABLE: "false"
-    ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    HTTP_ENABLE: "true"
+    value: "-Xms64m -Xmx64m"
 
     # The default value for this environment variable is 2, meaning a cluster
     # will need a minimum of 2 master nodes to operate. If you have 3 masters
     # and one dies, the cluster still works.
     NUMBER_OF_MASTERS: "2"
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 100m
+        memory: 64Mi
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: role
+                operator: In
+                values:
+                - node
+            topologyKey: kubernetes.io/hostname
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   httpPort: 9200
   transportPort: 9300
